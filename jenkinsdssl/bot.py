@@ -2,11 +2,14 @@ from collections import defaultdict
 import json
 import logging
 import os
+import telegram
+import telegram.utils.helpers
 from telegram import Update
 from telegram.ext import Updater
 from telegram.ext import CallbackContext, CommandHandler, ConversationHandler, Filters, MessageHandler, TypeHandler
 
-from jenkinsdssl.post import PostNotify
+
+from jenkinsdssl.post import PostNotify, PayloadUrlButton
 logger = logging.getLogger(__name__)
 
 CONFIG = 'config.json'
@@ -86,8 +89,59 @@ def cancel(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
-def foobar(update: Update, context: CallbackContext):
-    print('foobar!')
+def get_chats(notifies: list):
+    chats = []
+    for chat_id, chat_data in database.items():
+        for n in notifies:
+            if n in chat_data['aliases']:
+                chats.append(chat_id)
+    return chats
+
+def urlbuttons_from_payload(payload: list):
+    buttons = []
+    for p in payload:
+        if isinstance(p, PayloadUrlButton):
+            buttons.append(telegram.InlineKeyboardButton(text=p.name, url=p.url))
+    return buttons
+def icon_from_status(status: str):
+    if status == 'success':
+        return '\U0001f7e2' # green circle
+    elif status == 'failed':
+        code = '\U0001f534' # red circle
+    elif status == 'unstable':
+        return '\U0001f7e1' # yellow circle
+    elif status == 'canceled':
+        return '\U0001f6c7' # crossed out circle
+    return '<>'
+
+
+
+import re
+RE_ESCAPE=re.compile('([\-_\[\]<>])')
+def foobar(update: PostNotify, context: CallbackContext):
+    escaper = lambda x: re.sub(RE_ESCAPE, r'\1', x)
+    bot : telegram.Bot = context.bot
+    job = escaper(update.job_name)
+    build = escaper(update.build)
+    url = update.build_url
+    status = escaper(update.build_result)
+    additional = f'\n\n{escaper(update.message)}' if update.message else ''
+    icon = escaper(icon_from_status(status))
+
+    text =f'{icon}  *__{status.upper()}__*\njob *{job}*\nbuild *{build}*' \
+        f'\n[\[LINK\]]({url}){additional}'
+    chats = get_chats(update.notify)
+    logger.info(f'Sending post data to chats: {chats}')
+    for chat_id in chats:
+        bot.send_message(chat_id,
+        text=text,
+        parse_mode=telegram.ParseMode.MARKDOWN_V2,
+        reply_markup=telegram.InlineKeyboardMarkup(
+            [[telegram.InlineKeyboardButton(text='JENKINS', url=url)] +
+                urlbuttons_from_payload(update.payload)
+            ]
+        )
+    )
 
 
 def none(): pass
@@ -97,6 +151,7 @@ def init():
     token = get_token()
     upd = Updater(token=token, use_context=True)
     disp = upd.dispatcher
+    logger.info('Updater created')
 
     disp.add_handler(CommandHandler('start', start))
     conv_handler = ConversationHandler(
@@ -112,7 +167,9 @@ def init():
     disp.add_handler(conv_handler)
     disp.add_handler(CommandHandler('names', names))
     disp.add_handler(TypeHandler(PostNotify, foobar))
+    logger.info('Handlers set up')
 
     global database
     database =  defaultdict(nonedict, [(int(x),defaultdict(none, y)) for x,y in get_json(DB).items()])
+    logger.info('Database acquired')
     return upd

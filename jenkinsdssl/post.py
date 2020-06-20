@@ -34,6 +34,7 @@ class PostNotify:
         if self.type == 'simple':
             self.build_url    = self.arg('url',      str, '"simple" type supposed to include "url"')
             self.job_name     = self.arg('job_name', str, '"simple" type supposed to include "job_name"')
+            self.build        = self.arg('build',    str, '"simple" type supposed to include "build"')
             self.build_result = self.arg('status',   str, '"simple" type supposed to include "status"')
             self.message      = self.arg('text',     str, optional=True) or ''
         elif self.type == 'markdown':
