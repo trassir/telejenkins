@@ -1,4 +1,5 @@
 
+import logging
 from threading import Thread
 
 from telegram.ext import Updater
@@ -9,6 +10,7 @@ from telegram.utils.webhookhandler import WebhookServer
 
 from jenkinsdssl.post import PostNotify
 
+logger = logging.getLogger(__name__)
 
 class MainHandler(RequestHandler):
     def initialize(self, upd: Updater):
@@ -16,11 +18,11 @@ class MainHandler(RequestHandler):
 
     def prepare(self):
         self.args = json_decode(self.request.body) if self.request.body else dict()
+        logger.info(f'POST prepared with args {self.args}')
 
     def post(self):
-        print(self.args)
-        self.set_header('content-type', 'application/json')
         self.upd.update_queue.put(PostNotify(self.args))
+        logger.info(f'POST sent {self.args}')
 
 
 class WebhookThread(Thread):
@@ -29,10 +31,15 @@ class WebhookThread(Thread):
         app = tornado.web.Application([
             url(r"/notify", MainHandler, dict(upd=upd)),
         ])
-        self.webhooks = WebhookServer("0.0.0.0", 8888, app, None)
+        port = 8888
+        host = "0.0.0.0"
+        self.webhooks = WebhookServer(host, port, app, None)
+        logger.info(f'Tornado app created @ {host}:{port}')
 
     def run(self) -> None:
+        logger.info(f'Tornado serving forever')
         self.webhooks.serve_forever()
 
     def shutdown(self):
+        logger.info(f'Tornado shutdown')
         self.webhooks.shutdown()
