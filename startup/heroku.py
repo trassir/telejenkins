@@ -1,33 +1,33 @@
 import json
 import sys
+import urllib.parse as urlparse
 from os import environ as env
 from subprocess import check_call as SH
+
+# todo: sqlalchemy?
+url = urlparse.urlparse(env['DATABASE_URL'])
+dbname = url.path[1:]
+user = url.username
+password = url.password
+host = url.hostname
+port = url.port
 
 def write_config():
     j = dict(
         token=env['CONFIGJSON_TOKEN'],
         db=dict(
-            dbname=env['CONFIGJSON_DBNAME'],
-            user=env['CONFIGJSON_DBUSER'],
-            host=env['CONFIGJSON_DBHOST'],
-            password=env['CONFIGJSON_DBPASSWORD'],
-            port=int(env['CONFIGJSON_DBPORT'])
+            dbname=dbname,
+            user=user,
+            host=host,
+            password=password,
+            port=port,
         )
     )
     with open('config.json', 'w') as f:
         json.dump(j, f)
 
 def startup_db():
-    SH(['docker', 'volume', 'create', 'pgdata'])
-    SH(['docker', 'run',
-        '--name', 'postgres',
-        '-e', f'POSTGRES_PASSWORD={env["CONFIGJSON_DBPASSWORD"]}',
-        '-d',
-        '-p', f'{env["CONFIGJSON_DBPORT"]}:5432',
-        # '-v', 'pgdata:/var/lib/postgresql/data',
-        'postgres'
-    ])
-    SH([sys.executable, 'startup/initdb.py'])
+    SH([sys.executable, 'startup/initdb.py', dbname, user, password, host, port])
 
 def startup_python():
     SH([sys.executable, '-m', 'pip', 'install', '--user', '-r', 'requirements.txt'])

@@ -1,13 +1,24 @@
+import argparse
 from os import environ as env
 
 from jenkinsdssl.sql import sql
 
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument('dbname')
+    p.add_argument('user')
+    p.add_argument('password')
+    p.add_argument('host')
+    p.add_argument('port')
+    return p.parse_args()
+
 def main():
-    dbname = env['CONFIGJSON_DBNAME']
-    user = env['CONFIGJSON_DBUSER']
-    host = env['CONFIGJSON_DBHOST']
-    password = env['CONFIGJSON_DBPASSWORD']
-    port = int(env['CONFIGJSON_DBPORT'])
+    a = parse_args()
+    dbname=a.dbname
+    user=a.user
+    host=a.host
+    password=a.password
+    port=a.port
     sql.init(dbname=dbname, user=user, host=host, password=password, port=port)
     sql.set(f'''
 DROP DATABASE "{dbname}";
