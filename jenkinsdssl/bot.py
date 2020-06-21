@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 CONFIG = 'config.json'
 DB = 'db.json'
 
-REGISTER_NAME, = range(1)
+REGISTER_NAME, FORGET_NAME = range(2)
 
 database = None
 
@@ -82,6 +82,22 @@ def register_name(update: Update, context: CallbackContext):
 
     update.message.reply_markdown(
         f"A'ight! Thou art known as `{update.message.text}` now.")
+    return ConversationHandler.END
+
+
+def forget_start(update: Update, context: CallbackContext):
+    update.message.reply_text('What alias doest thou want to remove?')
+    return FORGET_NAME
+
+def forget_name(update: Update, context: CallbackContext):
+    user = database[update.effective_chat.id]
+    aliases = set(user['aliases'] or [])
+    aliases.remove(update.message.text)
+    user['aliases'] = list(aliases)
+    dump_json(database, DB)
+
+    update.message.reply_markdown(
+        "Thine name hast been forgotten.")
     return ConversationHandler.END
 
 def cancel(update: Update, context: CallbackContext):
@@ -154,7 +170,7 @@ def init():
     logger.info('Updater created')
 
     disp.add_handler(CommandHandler('start', start))
-    conv_handler = ConversationHandler(
+    disp.add_handler(ConversationHandler(
         entry_points=[CommandHandler('register', register_start)],
         states={
             REGISTER_NAME: [
@@ -162,9 +178,16 @@ def init():
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
-    )
-
-    disp.add_handler(conv_handler)
+    ))
+    disp.add_handler(ConversationHandler(
+        entry_points=[CommandHandler('forget', forget_start)],
+        states={
+            FORGET_NAME: [
+                MessageHandler(Filters.text & ~Filters.command, forget_name)
+            ]
+        },
+        fallbacks=[CommandHandler('cancel', cancel)]
+    ))
     disp.add_handler(CommandHandler('names', names))
     disp.add_handler(TypeHandler(PostNotify, foobar))
     logger.info('Handlers set up')
