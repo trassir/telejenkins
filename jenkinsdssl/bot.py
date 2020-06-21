@@ -1,23 +1,39 @@
-from collections import defaultdict
 import json
 import logging
 import os
+import re
+from collections import defaultdict
+
+import psycopg2
 import telegram
 import telegram.utils.helpers
 from telegram import Update
-from telegram.ext import Updater
-from telegram.ext import CallbackContext, CommandHandler, ConversationHandler, Filters, MessageHandler, TypeHandler
+from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
+                          Filters, MessageHandler, TypeHandler, Updater)
 
+from jenkinsdssl.post import PayloadUrlButton, PostNotify
 
-from jenkinsdssl.post import PostNotify, PayloadUrlButton
 logger = logging.getLogger(__name__)
 
 CONFIG = 'config.json'
-DB = 'db.json'
+
+class sql:
+    _db_connection = None
+    _db_cursor = None
+    @staticmethod
+    def init(**kwargs):
+        sql._db_connection = psycopg2.connect(**kwargs)
+        sql._db_cursor = sql._db_connection.cursor()
+    @staticmethod
+    def set(*args, **kwargs):
+        sql._db_cursor.execute(*args, **kwargs)
+        sql._db_connection.commit()
+    @staticmethod
+    def get(*args, **kwargs):
+        sql._db_cursor.execute(*args, **kwargs)
+        return sql._db_cursor.fetchall()
 
 REGISTER_NAME, FORGET_NAME = range(2)
-
-database = None
 
 def get_json(filename):
     if os.path.exists(filename):
@@ -34,8 +50,10 @@ def dump_json(config, filename):
         json.dump(config, f, indent=2)
     logger.info(f'json {filename} dumped')
 
-def get_token():
-    c = get_json(CONFIG).get('token')
+def get_token(conf=None):
+    if not conf:
+        conf = get_json(CONFIG)
+    c = conf.get('token')
     if not c:
         raise RuntimeError('Need "token" in config')
     return c
@@ -45,22 +63,26 @@ def get_token():
 def start(update: Update, context: CallbackContext):
     user = update.effective_user
     description = f'{user.id}:{user.username or ""}:{user.first_name}:{user.last_name}'
-    data = database[update.effective_chat.id]
-    data['description'] = description
-    dump_json(database, DB)
-    # database[update.effective_chat.id]['description'] = description
-    context.bot.send_message(chat_id=update.effective_chat.id, text=
-        "G'day, sire. I am Jenkins notification bot."
+    sql.set(f'''INSERT INTO chats
+    (id, description) VALUES ({update.effective_chat.id}, '{description}')
+    ''')
+    update.message.reply_text("G'day, sire. I am Jenkins notification bot."
         f"\nThou'st registered as {description}")
 
 
 def names(update: Update, context: CallbackContext):
-    user = database[update.effective_chat.id]
+    chat_id = update.effective_chat.id
+    user = sql.get(f'''SELECT id FROM chats
+    WHERE id = {chat_id}
+    ''')
     if not user:
         update.message.reply_text('Sorry, you have not registered yet')
         return
+    aliases = sql.get(f'''SELECT alias FROM aliases
+    WHERE chat_id = {chat_id}
+    ''')
+    aliases = [x[0] for x in aliases]
 
-    aliases = user['aliases']
     if not aliases:
         update.message.reply_text('You have not created any aliases yet')
         return
@@ -74,12 +96,20 @@ def register_start(update: Update, context: CallbackContext):
     return REGISTER_NAME
 
 def register_name(update: Update, context: CallbackContext):
-    user = database[update.effective_chat.id]
-    aliases = set(user['aliases'] or [])
-    aliases.add(update.message.text)
-    user['aliases'] = list(aliases)
-    dump_json(database, DB)
-
+    chat_id = update.effective_chat.id
+    aliases = sql.get(f'''SELECT alias FROM aliases
+    WHERE chat_id = {chat_id}
+    ''')
+    aliases = [x[0] for x in aliases] # list of tuples
+    logger.info(f'ALIASES:: {aliases}')
+    alias = update.message.text
+    if alias in aliases:
+        update.message.reply_markdown(
+            f"Thou art already known as `{alias}`. Choose another or /cancel")
+        return REGISTER_NAME
+    sql.set(f'''INSERT INTO aliases
+    (chat_id, alias) VALUES ({chat_id}, '{alias}')
+    ''')
     update.message.reply_markdown(
         f"A'ight! Thou art known as `{update.message.text}` now.")
     return ConversationHandler.END
@@ -90,11 +120,11 @@ def forget_start(update: Update, context: CallbackContext):
     return FORGET_NAME
 
 def forget_name(update: Update, context: CallbackContext):
-    user = database[update.effective_chat.id]
-    aliases = set(user['aliases'] or [])
-    aliases.remove(update.message.text)
-    user['aliases'] = list(aliases)
-    dump_json(database, DB)
+    alias = update.message.text
+    chat_id = update.effective_chat.id
+    sql.set(f'''DELETE FROM aliases
+    WHERE chat_id = {chat_id} AND alias='{alias}'
+    ''')
 
     update.message.reply_markdown(
         "Thine name hast been forgotten.")
@@ -106,12 +136,13 @@ def cancel(update: Update, context: CallbackContext):
 
 
 def get_chats(notifies: list):
-    chats = []
-    for chat_id, chat_data in database.items():
-        for n in notifies:
-            if n in chat_data['aliases']:
-                chats.append(chat_id)
-    return chats
+    aliases_wherein = ', '.join(f"'{x}'" for x in notifies)
+    chats = sql.get(f'''SELECT chats.id
+    FROM chats
+        INNER JOIN aliases ON aliases.chat_id=chats.id
+    WHERE aliases.alias IN ({aliases_wherein})
+    ''')
+    return [c[0] for c in chats]
 
 def urlbuttons_from_payload(payload: list):
     buttons = []
@@ -132,7 +163,6 @@ def icon_from_status(status: str):
 
 
 
-import re
 RE_ESCAPE=re.compile('([!#\-_\[\]<>])')
 def foobar(update: PostNotify, context: CallbackContext):
     escaper = lambda x: re.sub(RE_ESCAPE, r'\\\1', x)
@@ -168,7 +198,11 @@ def none(): pass
 def nonedict(): return defaultdict(none,)
 
 def init():
-    token = get_token()
+    config = get_json(CONFIG)
+
+    sql.init(**config['db'])
+
+    token = get_token(config)
     upd = Updater(token=token, use_context=True)
     disp = upd.dispatcher
     logger.info('Updater created')
@@ -196,7 +230,4 @@ def init():
     disp.add_handler(TypeHandler(PostNotify, foobar))
     logger.info('Handlers set up')
 
-    global database
-    database =  defaultdict(nonedict, [(int(x),defaultdict(none, y)) for x,y in get_json(DB).items()])
-    logger.info('Database acquired')
     return upd
