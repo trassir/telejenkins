@@ -21,7 +21,7 @@ def main():
     port=a.port
     sql.init(dbname=dbname, user=user, host=host, password=password, port=port)
     sql.set(f'''
-DROP DATABASE "{dbname}";
+-- DROP DATABASE "{dbname}";
 
 CREATE DATABASE "{dbname}"
     WITH
