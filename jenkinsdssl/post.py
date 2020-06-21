@@ -41,7 +41,7 @@ class PostNotify:
             self.markdown = self.arg('markdown', str, '"markdown" type supposed to include "markdown"')
         else:
             raise ValueError(f'Unknown request type "{self.type}"')
-        payload = self.arg('payload', list, optional=True)
+        payload = self.arg('payload', list, optional=True) or []
         self.payload = []
         for p in payload:
             tp = self.arg('type', str, 'Payload should include "type"', args=p)
