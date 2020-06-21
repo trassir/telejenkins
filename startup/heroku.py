@@ -30,7 +30,7 @@ def startup_db():
     SH([sys.executable, 'startup/initdb.py', dbname, user, password, host, str(port)])
 
 def start_bot():
-    SH([sys.executable, 'run.py'])
+    SH([sys.executable, 'run.py', env['PORT']])
 
 def main():
     write_config()

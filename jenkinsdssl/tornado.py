@@ -37,12 +37,11 @@ class MainHandler(tw.RequestHandler):
 
 
 class WebhookThread(Thread):
-    def __init__(self, upd: Updater):
+    def __init__(self, upd: Updater, port: int):
         super().__init__()
         app = tw.Application([
             tw.url(r"/notify", MainHandler, dict(upd=upd)),
         ])
-        port = 8888
         host = "0.0.0.0"
         self.webhooks = WebhookServer(host, port, app, None)
         logger.info(f'Tornado app created @ {host}:{port}')
