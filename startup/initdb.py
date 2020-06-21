@@ -21,18 +21,6 @@ def main():
     port=a.port
     sql.init(dbname=dbname, user=user, host=host, password=password, port=port)
     sql.set(f'''
--- DROP DATABASE "{dbname}";
-
-CREATE DATABASE "{dbname}"
-    WITH
-    OWNER = "{user}"
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en_US.utf8'
-    LC_CTYPE = 'en_US.utf8'
-    TABLESPACE = pg_default
-    CONNECTION LIMIT = -1;
-
-
 CREATE TABLE public.chats
 (
     id integer NOT NULL,
