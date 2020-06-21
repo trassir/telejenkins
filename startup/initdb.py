@@ -9,7 +9,7 @@ def parse_args():
     p.add_argument('user')
     p.add_argument('password')
     p.add_argument('host')
-    p.add_argument('port')
+    p.add_argument('port', type=int)
     return p.parse_args()
 
 def main():

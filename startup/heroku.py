@@ -27,16 +27,12 @@ def write_config():
         json.dump(j, f)
 
 def startup_db():
-    SH([sys.executable, 'startup/initdb.py', dbname, user, password, host, port])
-
-def startup_python():
-    SH([sys.executable, '-m', 'pip', 'install', '--user', '-r', 'requirements.txt'])
+    SH([sys.executable, 'startup/initdb.py', dbname, user, password, host, str(port)])
 
 def start_bot():
     SH([sys.executable, 'run.py'])
 
 def main():
-    startup_python()
     write_config()
     startup_db()
     start_bot()
