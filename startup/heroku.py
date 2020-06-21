@@ -34,7 +34,7 @@ def start_bot():
 
 def main():
     write_config()
-    startup_db()
+    # startup_db()
     start_bot()
 
 if __name__ == "__main__":
