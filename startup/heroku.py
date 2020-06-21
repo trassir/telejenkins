@@ -14,7 +14,7 @@ def write_config():
             port=int(env['CONFIGJSON_DBPORT'])
         )
     )
-    with open('config.json') as f:
+    with open('config.json', 'w') as f:
         json.dump(j, f)
 
 def startup_db():
