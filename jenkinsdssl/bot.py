@@ -117,9 +117,9 @@ def icon_from_status(status: str):
 
 
 import re
-RE_ESCAPE=re.compile('([\-_\[\]<>])')
+RE_ESCAPE=re.compile('([#\-_\[\]<>])')
 def foobar(update: PostNotify, context: CallbackContext):
-    escaper = lambda x: re.sub(RE_ESCAPE, r'\1', x)
+    escaper = lambda x: re.sub(RE_ESCAPE, r'\\\1', x)
     bot : telegram.Bot = context.bot
     job = escaper(update.job_name)
     build = escaper(update.build)
