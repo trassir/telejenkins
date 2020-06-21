@@ -30,9 +30,9 @@ class PostNotify:
         self.kwargs = kwargs
         notify = self.arg('notify', str, 'Parameters should include "notify"')
         self.notify = decode_notify(notify)
+        self.build_url = self.arg('url', str, 'Parameters should include "url"')
         self.type = self.arg('type', str, 'Parameters should include "type"')
         if self.type == 'simple':
-            self.build_url    = self.arg('url',      str, '"simple" type supposed to include "url"')
             self.job_name     = self.arg('job_name', str, '"simple" type supposed to include "job_name"')
             self.build        = self.arg('build',    str, '"simple" type supposed to include "build"')
             self.build_result = self.arg('status',   str, '"simple" type supposed to include "status"')

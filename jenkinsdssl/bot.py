@@ -133,19 +133,23 @@ def icon_from_status(status: str):
 
 
 import re
-RE_ESCAPE=re.compile('([#\-_\[\]<>])')
+RE_ESCAPE=re.compile('([!#\-_\[\]<>])')
 def foobar(update: PostNotify, context: CallbackContext):
     escaper = lambda x: re.sub(RE_ESCAPE, r'\\\1', x)
     bot : telegram.Bot = context.bot
-    job = escaper(update.job_name)
-    build = escaper(update.build)
     url = update.build_url
-    status = escaper(update.build_result)
-    additional = f'\n\n{escaper(update.message)}' if update.message else ''
-    icon = escaper(icon_from_status(status))
 
-    text =f'{icon}  *__{status.upper()}__*\njob *{job}*\nbuild *{build}*' \
-        f'\n[\[LINK\]]({url}){additional}'
+
+    if update.type == 'simple':
+        build = escaper(update.build)
+        job = escaper(update.job_name)
+        status = escaper(update.build_result)
+        icon = f'{escaper(icon_from_status(status))}'
+        additional = f'\n\n{escaper(update.message)}' if update.message else ''
+        text =f'{icon}  *__{status.upper()}__*\njob *{job}*\nbuild *{build}*' \
+            f'\n[\[LINK\]]({url}){additional}'
+    elif update.type == 'markdown':
+        text = escaper(update.markdown)
     chats = get_chats(update.notify)
     logger.info(f'Sending post data to chats: {chats}')
     for chat_id in chats:
