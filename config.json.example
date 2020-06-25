@@ -1,0 +1,10 @@
+{
+  "token": "111111111:AAAAAAAA-bbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "db": {
+    "dbname": "jenkins-telegram-db",
+    "user": "telejenkins",
+    "host": "localhost",
+    "password": "11111",
+    "port": 54320
+  }
+}
