@@ -9,8 +9,12 @@ class sql:
         sql._db_cursor = sql._db_connection.cursor()
     @staticmethod
     def set(*args, **kwargs):
-        sql._db_cursor.execute(*args, **kwargs)
-        sql._db_connection.commit()
+        try:
+            sql._db_cursor.execute(*args, **kwargs)
+            sql._db_connection.commit()
+        except:
+            sql._db_connection.rollback()
+            raise
     @staticmethod
     def get(*args, **kwargs):
         sql._db_cursor.execute(*args, **kwargs)
