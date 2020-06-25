@@ -82,16 +82,27 @@ def register_start(update: Update, context: CallbackContext):
 
 def register_name(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
+    alias = update.message.text
+
     aliases = sql.get(f'''SELECT alias FROM aliases
     WHERE chat_id = {chat_id}
     ''')
     aliases = [x[0] for x in aliases] # list of tuples
-    logger.info(f'ALIASES:: {aliases}')
-    alias = update.message.text
+
     if alias in aliases:
         update.message.reply_markdown(
             f"Thou art already known as `{alias}`. Choose another or /cancel")
         return REGISTER_NAME
+
+    aliases = sql.get(f'''SELECT alias FROM aliases
+    WHERE alias = '{alias}'
+    ''')
+    aliases = [x[0] for x in aliases] # list of tuples
+    if aliases:
+        update.message.reply_markdown(
+            f"Alas, m'lord, alias `{alias}` is already taken. Choose another or /cancel")
+        return REGISTER_NAME
+
     sql.set(f'''INSERT INTO aliases
     (chat_id, alias) VALUES ({chat_id}, '{alias}')
     ''')
@@ -139,7 +150,7 @@ def icon_from_status(status: str):
     if status == 'success':
         return '\U0001f7e2' # green circle
     elif status == 'failed':
-        code = '\U0001f534' # red circle
+        return '\U0001f534' # red circle
     elif status == 'unstable':
         return '\U0001f7e1' # yellow circle
     elif status == 'canceled':
