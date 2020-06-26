@@ -46,8 +46,9 @@ def get_token(conf=None):
 
 
 def start(update: Update, context: CallbackContext):
-    user = update.effective_user
-    description = f'{user.id}:{user.username or ""}:{user.first_name}:{user.last_name}'
+    chat : telegram.Chat = update.effective_chat
+    name = f'{chat.first_name}:{chat.last_name}' if chat.first_name else chat.title
+    description = f'{chat.id}:{chat.username or ""}:{name}'
     sql.set(f'''INSERT INTO chats
     (id, description) VALUES ({update.effective_chat.id}, '{description}')
     ''')
